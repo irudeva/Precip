@@ -3,6 +3,10 @@ import netCDF4
 import numpy as np
 import datetime as datetime  # Python standard library datetime  module
 from scipy import interpolate, stats
+import time
+
+def pause():
+    programPause = raw_input("Press the <ENTER> key to continue...")
 
 
 # pi = np.pi
@@ -213,7 +217,7 @@ ncout_ssn.close()
 
 # t2m_like_precip (i.e. t2m interpolated onto precip grid) to netcdf
 finter = '../output/test/t2m.inter.nc'
-print 'first control netcdf ', finter
+print 'second control netcdf ', finter
 ncout_inter = Dataset(finter, 'w', format='NETCDF4')
 
 ncout_inter.description = "TEST seasonal 2m air temp from %s" % (Tin)
@@ -254,43 +258,87 @@ print "End Interpolation\n"
 
 print "------Correlation\n"
 
+r = np.zeros_like(precip_ssn[0,:,:,:])
+pval = r
 for issn in range(ssn.size) :
     for y,lat in enumerate(latp) :
         for x,lon in enumerate(lonp) :
-          slope, intercept, r_value, p_value, std_err = stats.linregress(precip_ssn[:,issn,y,x],t2m_like_precip[:,issn,y,x])
-          print "precip: "
-          print precip_ssn[:,issn,y,x]
-          print "t2m   : "
-          print t2m_like_precip[:,issn,y,x]
-          print ssn[issn], lon,lat, r_value, p_value
+          print lon,lat
+          ploc = precip_ssn[:,issn,y,x]
+          tloc = t2m_like_precip[:,issn,y,x]
+          print ploc
+          print tloc
+          mask = np.isfinite([ploc, tloc]).all(axis=0)
+          print ploc[mask]
+          print tloc[mask]
+          a, b, r[issn,y,x], pval[issn,y,x], err = stats.linregress(tloc[mask],ploc[mask])
+          # print "precip: "
+          # print "t2m   : "
+          print r[issn,y,x], pval[issn,y,x]
+          print a*tloc[mask]+b
+          print ploc[mask]
+
+          #time.sleep(5.5)
+          #pause()
 
 
+          # X=np.array([0,1,2,3,4,5])
+          # Y = np.array([np.NaN,4, 5, 10, 2, 5])
+          # mask = np.isfinite([X, Y]).all(axis=0)
+          # Xclear = X[mask]
+          # Yclear = Y[mask]
+          # print Xclear
+          # print Yclear
+          # a, b, r, pval, err = stats.linregress(Xclear, Yclear)
+          # print r, pval
+          # print a*Xclear+b
+
+# Write ouput file
+
+fssn = '../output/corr.nc'
+print 'output netcdf ', fssn
+ncout_corr = Dataset(fssn, 'w', format='NETCDF4')
+ncout_corr.description = "Seasonal correlations between 2m air temp from %s and GPSP precip %s for %d - %d" % (Tin,precipin,yrs)
+
+varnam = (Tnam[0],Tnam[1],'ssn','r','pval')
+dimnam = (Tnam[0],Tnam[1],'ssn','nchar')
+
+ncout_corr.createDimension(dimnam[0], lonp.size)
+ncout_corr.createDimension(dimnam[1], latp.size)
+ncout_corr.createDimension(dimnam[2], ssn.size)
+#ncout_corr.createDimension(dimnam[3], yrs[1]-yrs[0]+1)
+ncout_corr.createDimension(dimnam[3], 3)
+
+for n,nv in enumerate(varnam[:2]) :
+    ncout_var = ncout_corr.createVariable(nv,lonp.dtype,dimnam[n])
+    for ncattr in ncP.variables[nv].ncattrs():
+        ncout_var.setncattr(ncattr, ncP.variables[nv].getncattr(ncattr))
+
+ncout_issn = ncout_corr.createVariable(varnam[2], 'S1',(dimnam[2],dimnam[4]))
+str_out = netCDF4.stringtochar(np.array(ssn, 'S3'))
+#ncout_yr = ncout_corr.createVariable(varnam[3], 'i4',dimnam[3])
+
+ncout_r = ncout_corr.createVariable(varnam[3], 'f',dimnam[2::-1])
+ncout_r.long_name = 'Correlation between precip and t2m'
+#ncout_r.units = 'C'
+# ncout_var.scale_factor = varlist["scale"][iv]
+# ncout_var.add_offset   = 0.
+ncout_p = ncout_corr.createVariable(varnam[4], 'f',dimnam[2::-1])
+ncout_r.long_name = 'p values'
+
+ncout_corr.variables[varnam[0]][:] = lonp
+ncout_corr.variables[varnam[1]][:] = latp
+ncout_issn[:]                     = str_out
+#ncout_yr[:]                       = range(yrs[0],yrs[1]+1)
+ncout_r[:]                      = r[:,:,:]
+ncout_p[:]                      = pval[:,:,:]
+
+ncout_corr.close()
+
+# End ouput write
 
 
 
 ncT.close()
 ncP.close()
 quit()
-
-
-
-
-
-
-
-print lont[5]
-print latt[5]
-print t2m_ssn[5,5,3,0]
-
-print t2mint(lont[5],latt[5])
-
-
-
-quit()
-
-## plot netcdf fields
-## compare the t2m_ssn and inter t2m_ssn
-
-## correlation
-## write netcdf of corr coef (regression line)
-##plot corr coeff for four seasons
