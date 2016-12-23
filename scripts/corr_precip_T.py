@@ -8,6 +8,14 @@ import time
 def pause():
     programPause = raw_input("Press the <ENTER> key to continue...")
 
+x=[1,2,3,4,5]
+y=[3,5,-1,5,10]
+
+a,b,r,p,err = stats.linregress(x,y)
+
+print a,b,r,p
+
+quit()
 
 # pi = np.pi
 # dtr=pi/180
@@ -272,6 +280,7 @@ for issn in range(ssn.size) :
         #   print ploc[mask]
         #   print tloc[mask]
           a, b, r[issn,y,x], pval[issn,y,x], err = stats.linregress(tloc[mask],ploc[mask])
+          print lon, lat, r[issn,y,x], pval[issn,y,x]
         #   # print "precip: "
         #   # print "t2m   : "
         #   print r[issn,y,x], pval[issn,y,x]
@@ -328,10 +337,10 @@ ncout_p.long_name = 'p values'
 
 ncout_corr.variables[varnam[0]][:] = lonp
 ncout_corr.variables[varnam[1]][:] = latp
-ncout_issn[:]                     = str_out
+ncout_issn[:]                      = str_out
 #ncout_yr[:]                       = range(yrs[0],yrs[1]+1)
-ncout_r[:]                      = r[:,:,:]
-ncout_p[:]                      = pval[:,:,:]
+ncout_r[:]                         = r[:,:,:]
+ncout_p[:]                         = pval[:,:,:]
 
 ncout_corr.close()
 

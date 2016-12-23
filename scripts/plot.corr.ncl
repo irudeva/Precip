@@ -3,21 +3,24 @@ begin
 ; read in netCDF file
 ;************************************************
 
- nvar = "corr"
+ outvar = (/"corr","pval"/)
+ invar = (/"r","pval"/)
+
+ do iv = 0,1
 
  do is=0,3
 
-  a = addfile("../output/"+nvar+".nc","r")
+  a = addfile("../output/corr.nc","r")
   ;************************************************
   ;if(any((/"qy","BetaM"/).eq.nvar(iv))) then
-  lev = (/-100, 100, 5/)
+  lev = (/-90, 90, 20/)
   ;end if
 
   ;************************************************
     ssn=a->ssn
     season = ""+ssn(is,0) +ssn(is,1) +ssn(is,2)
 
-    varname="r"
+    varname=invar(iv)
     var = a->$varname$
     printVarSummary(var)
     var=var*100.
@@ -29,7 +32,7 @@ begin
   ;************************************************
   ; create default plot
   ;************************************************
-    wks = gsn_open_wks("png","../output/"+nvar+"."+season)                  ; send graphics to PNG file
+    wks = gsn_open_wks("png","../output/"+outvar(iv)+"."+season)                  ; send graphics to PNG file
 
     res = True
     res@mpMinLatF            = -90      ; range to zoom in on
@@ -38,7 +41,7 @@ begin
     res@mpMaxLonF            = 360.
 
     res@cnFillOn             = True                  ; turn on color fill
-    res@cnFillPalette        = "BlWhRe"              ; choose colormap
+    res@cnFillPalette        = "ViBlGrWhYeOrRe"              ; choose colormap
 
 
     res@cnLevelSelectionMode = "ManualLevels"	; manually set the contour levels with the following 3 resources
@@ -56,5 +59,6 @@ begin
     plot = gsn_csm_contour_map(wks,var(is,:,:),res)         ; create a default plot
     print("end plotting")
 
+end do
 end do
 end
