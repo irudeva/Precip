@@ -1,6 +1,8 @@
 from netCDF4 import Dataset
+import netCDF4
 import numpy as np
 import datetime as datetime  # Python standard library datetime  module
+from scipy import interpolate, stats
 
 
 # pi = np.pi
@@ -30,40 +32,43 @@ for issn in ssn :
 # read precip
 precipnam=('lon','lat','time','precip')
 
-print precipin
+print 'precip file in=',precipin
 
-nc = Dataset(precipin, 'r')
+ncP = Dataset(precipin, 'r')
 
 for i, var in enumerate(precipnam):
-    print var, i
-    if nc.variables[precipnam[i]].name != var:
+    print 'precip var: ',var, i
+    if ncP.variables[precipnam[i]].name != var:
         print "Variables don't agree", var, nc.variables[varnam[v]].name, v
         exit()
 
-lonp = nc.variables[precipnam[0]][:]
-latp = nc.variables[precipnam[1]][:]
-timep = nc.variables[precipnam[2]][:]
-precip = nc.variables[precipnam[3]][:]
+lonp = ncP.variables[precipnam[0]][:]
+latp = ncP.variables[precipnam[1]][:]
+timep = ncP.variables[precipnam[2]][:]
+precip = ncP.variables[precipnam[3]][:]
 
 
 
 # read Tin
 Tnam=('longitude','latitude','time','t2m')
 
-print Tin
+print 'T file in=',Tin
 
-nc = Dataset(Tin, 'r')
+ncT = Dataset(Tin, 'r')
 
 for i, var in enumerate(Tnam):
-    print var, i
-    if nc.variables[Tnam[i]].name != var:
+    print 't var: ',var, i
+    if ncT.variables[Tnam[i]].name != var:
         print "Variables don't agree", var, nc.variables[varnam[v]].name, v
         exit()
 
-lont = nc.variables[Tnam[0]][:]
-latt = nc.variables[Tnam[1]][:]
-timet = nc.variables[Tnam[2]][:]
-t2m = nc.variables[Tnam[3]][:]
+lont = ncT.variables[Tnam[0]][:]
+latt = ncT.variables[Tnam[1]][:]
+timet = ncT.variables[Tnam[2]][:]
+if ncT.variables[Tnam[3]].units == "K" :
+    t2m = ncT.variables[Tnam[3]][:]-273.15
+else:
+    t2m = ncT.variables[Tnam[3]][:]
 
 print("Data uploaded")
 # end read
@@ -79,11 +84,11 @@ dt_timet = [datetime.date(1900, 1, 1) + datetime.timedelta(hours=int(t))\
 
 nump = np.zeros([ssn.size, yrs[1]-yrs[0]+1],dtype=int)
 numt = np.zeros_like(nump)
-precip_ssn = np.zeros([np.size(latp),np.size(lonp),ssn.size, yrs[1]-yrs[0]+1])
-t2m_ssn = np.empty([np.size(latt),np.size(lont),ssn.size, yrs[1]-yrs[0]+1])
+precip_ssn = np.zeros([yrs[1]-yrs[0]+1,ssn.size,np.size(latp),np.size(lonp)])
+t2m_ssn = np.zeros([yrs[1]-yrs[0]+1,ssn.size,np.size(latt),np.size(lont)])
 
-print precip_ssn.shape
-print t2m_ssn.shape
+print 'precip ssn aver shape: ', precip_ssn.shape
+print 't2m ssn aver shape: ',t2m_ssn.shape
 
 
 for yr in range(1979,2017) :
@@ -96,144 +101,178 @@ for yr in range(1979,2017) :
             smon = np.array([3,4,5])
         elif issn == 'SON':
             smon = np.array([9,10,11])
-        print yr,issn,smon
+        # print yr,issn,smon
         for imon in smon :
             iyr = yr
             if imon == 12:
                 iyr = yr-1
             for it,t in enumerate(dt_timep) :
                 if t == datetime.date(iyr,imon,1):
-                    nump[js,iyr-yrs[0]]=nump[js,iyr-yrs[0]]+1
-                    precip_ssn[:,:,js,iyr-yrs[0]]=precip[it,:,:]+precip_ssn[:,:,js,iyr-yrs[0]]
+                    nump[js,yr-yrs[0]]=nump[js,yr-yrs[0]]+1
+                    precip_ssn[yr-yrs[0],js,:,:]=precip[it,:,:]+precip_ssn[yr-yrs[0],js,:,:]
             for it,t in enumerate(dt_timet) :
                 if t == datetime.date(iyr,imon,1):
-                    numt[js,iyr-yrs[0]]=numt[js,iyr-yrs[0]]+1
-                    t2m_ssn[:,:,js,iyr-yrs[0]]=t2m[it,:,:]+t2m_ssn[:,:,js,iyr-yrs[0]]
+                    numt[js,yr-yrs[0]]=numt[js,yr-yrs[0]]+1
+                    t2m_ssn[yr-yrs[0],js,:,:]=t2m[it,:,:]+t2m_ssn[yr-yrs[0],js,:,:]
 
-for yr in range(1979,2017) :
+# for yr in range(1979,2017) :
+#     for js,issn in enumerate(ssn) :
+#         print issn,yr
+#         print nump[js,yr-yrs[0]]
+#         print numt[js,yr-yrs[0]]
+#
+#
+# print dt_timep
+# print dt_timet
+
+for  yr in range(1979,2017) :
     for js,issn in enumerate(ssn) :
-        print issn,yr
-        print nump[js,iyr-yrs[0]]
-        print numt[js,iyr-yrs[0]]
+        if nump[js,yr-yrs[0]]==3 &   numt[js,yr-yrs[0]]==3 :
+            precip_ssn[yr-yrs[0],js,:,:]=precip_ssn[yr-yrs[0],js,:,:]/3
+            t2m_ssn[yr-yrs[0],js,:,:]=t2m_ssn[yr-yrs[0],js,:,:]/3
+        else :
+            print 'deleted season: ',yr, issn
+            precip_ssn[yr-yrs[0],js,:,:]=np.nan
+            t2m_ssn[yr-yrs[0],js,:,:]=np.nan
+
+##---Interpolation-----------------------------------------------------------------
+print "\nInterpolation"
+
+t2m_like_precip = np.zeros_like(precip_ssn)
+for  yr in range(1979-yrs[0],2017-yrs[0]) :
+    for js,issn in enumerate(ssn) :
+        print issn, yr+yrs[0]
+        if numt[js,yr]==3 :
+            t2mint = interpolate.interp2d(lont, latt, t2m_ssn[yr,js,:,:], kind='cubic')
+            for y,lat in enumerate(latp) :
+                for x,lon in enumerate(lonp):
+                    # print 'lon=',x,lon
+                    # print 'lat=',y,lat
+                    t2m_like_precip[yr,js,y,x]=t2mint(lon,lat)
+
+
+print "End Interpolation\n"
+
+print "Control netcdf write:\n"
+
+
+#control Interpolation
+# t2m_ssn to netcdf
+fssn = '../output/test/t2m.ssn.nc'
+print 'first control netcdf ', fssn
+ncout_ssn = Dataset(fssn, 'w', format='NETCDF4')
+ncout_ssn.description = "TEST seasonal 2m air temp from %s" % (Tin)
+
+varnam = (Tnam[0],Tnam[1],'ssn','yr','t2m_ssn')
+dimnam = (Tnam[0],Tnam[1],'ssn','yr','nchar')
+
+ncout_ssn.createDimension(dimnam[0], lont.size)
+ncout_ssn.createDimension(dimnam[1], latt.size)
+ncout_ssn.createDimension(dimnam[2], ssn.size)
+ncout_ssn.createDimension(dimnam[3], yrs[1]-yrs[0]+1)
+ncout_ssn.createDimension(dimnam[4], 3)
+
+for n,nv in enumerate(varnam[:2]) :
+    ncout_var = ncout_ssn.createVariable(nv,lont.dtype,dimnam[n])
+    for ncattr in ncT.variables[nv].ncattrs():
+        ncout_var.setncattr(ncattr, ncT.variables[nv].getncattr(ncattr))
+
+ncout_issn = ncout_ssn.createVariable(varnam[2], 'S1',(dimnam[2],dimnam[4]))
+str_out = netCDF4.stringtochar(np.array(ssn, 'S3'))
+ncout_yr = ncout_ssn.createVariable(varnam[3], 'i4',dimnam[3])
+
+ncout_var = ncout_ssn.createVariable(varnam[4], 'f',dimnam[3::-1])
+ncout_var.long_name = 'seasonally averaged T at 2m'
+ncout_var.units = 'C'
+# ncout_var.scale_factor = varlist["scale"][iv]
+# ncout_var.add_offset   = 0.
+
+ncout_ssn.variables[varnam[0]][:] = lont
+ncout_ssn.variables[varnam[1]][:] = latt
+ncout_issn[:]                     = str_out
+ncout_yr[:]                       = range(yrs[0],yrs[1]+1)
+ncout_var[:]                      = t2m_ssn[:,:,:,:]
+
+ncout_ssn.close()
+
+# t2m_like_precip (i.e. t2m interpolated onto precip grid) to netcdf
+finter = '../output/test/t2m.inter.nc'
+print 'first control netcdf ', finter
+ncout_inter = Dataset(finter, 'w', format='NETCDF4')
+
+ncout_inter.description = "TEST seasonal 2m air temp from %s" % (Tin)
+
+varnam = (precipnam[0],precipnam[1],'ssn','yr','t2m_inter')
+dimnam = (precipnam[0],precipnam[1],'ssn','yr','nchar')
+
+ncout_inter.createDimension(dimnam[0], lonp.size)
+ncout_inter.createDimension(dimnam[1], latp.size)
+ncout_inter.createDimension(dimnam[2], ssn.size)
+ncout_inter.createDimension(dimnam[3], yrs[1]-yrs[0]+1)
+ncout_inter.createDimension(dimnam[4], 3)
+
+for n,nv in enumerate(varnam[:2]) :
+    ncout_var = ncout_inter.createVariable(nv,lonp.dtype,dimnam[n])
+    for ncattr in ncP.variables[nv].ncattrs():
+        ncout_var.setncattr(ncattr, ncP.variables[nv].getncattr(ncattr))
+
+ncout_issn = ncout_inter.createVariable(varnam[2], 'S1',(dimnam[2],dimnam[4]))
+ncout_yr   = ncout_inter.createVariable(varnam[3], 'i4',dimnam[3])
+ncout_var  = ncout_inter.createVariable(varnam[4], 'f',dimnam[3::-1])
+ncout_var.long_name = 'interpolated T at 2m of seasonally averaged values'
+ncout_var.units     = 'C'
+# ncout_var.scale_factor = varlist["scale"][iv]
+# ncout_var.add_offset   = 0.
+
+
+ncout_inter.variables[varnam[0]][:] = lonp
+ncout_inter.variables[varnam[1]][:] = latp
+ncout_issn[:]                       = str_out
+ncout_yr[:]                         = range(yrs[0],yrs[1]+1)
+ncout_var[:]                        = t2m_like_precip
+
+ncout_inter.close()
+
+print "End netcdf control writing\n"
+print "End Interpolation\n"
+
+print "------Correlation\n"
+
+for issn in range(ssn.size) :
+    for y,lat in enumerate(latp) :
+        for x,lon in enumerate(lonp) :
+          slope, intercept, r_value, p_value, std_err = stats.linregress(precip_ssn[:,issn,y,x],t2m_like_precip[:,issn,y,x])
+          print "presip: ",precip_ssn[:,issn,y,x]
+          print "t2m   : ",t2m_like_precip[:,issn,y,x]
+          print ssn[issn], lon,lat, r_value, p_value
+
+
+
+
+
+ncT.close()
+ncP.close()
+quit()
+
+
+
+
+
+
+
+print lont[5]
+print latt[5]
+print t2m_ssn[5,5,3,0]
+
+print t2mint(lont[5],latt[5])
 
 
 
 quit()
 
-precip_ssn[lon,lat,ssn,year]
+## plot netcdf fields
+## compare the t2m_ssn and inter t2m_ssn
 
-t2m_ssn()
-
-
-
-
-quit()
-
-
-    # nt=np.array([0 for i in range(time.size)])
-    # i =0
-    # for yr in range(1980,2011) :
-    #     for m in bgmon :
-    #         yr1 = yr
-    #         if m == 12:
-    #             yr1 = yr-1
-    #         for t in dt_time :
-    #             if t == datetime.date(yr1,m,1):
-    #                 print 'selected time: ', t
-    #                 ind = dt_time.index(t)
-    #                 nt[i] = ind
-    #                 i += 1
-    #
-    #
-    # u = np.average(uwnd[nt[nt>0],:,:],axis=0)
-    # v = np.average(vwnd[nt[nt>0],:,:],axis=0)
-    #
-    #
-    # #----Mercator---------------------------------------------------------------------
-    # xm=lons*radius*dtr
-    # xm360=360*radius*dtr
-    # ym=lats+1  #array declaration
-    # #ym[1:-2] = lats[1:-2]
-    # ym[1:-2]=radius*np.log((1+np.sin(dtr*lats[1:-2]))/np.cos(dtr*lats[1:-2]));
-    # ym[0]=float('inf')
-    # ym[-1]=ym[0]
-    #
-    # # dy = np.gradient(ym)
-    # # dx = np.gradient(xm)
-    #
-    # coslat=np.cos(dtr*lats)
-    # #coslat[0]=0   # a very small number is used instead
-    # #coslat[-1]=0  # ----"""----
-    #
-    # # velocity in the Mercator projection
-    # um=u/coslat[:,None]
-    # vm=v/coslat[:,None]
-    #
-    #
-    # #----BetaM---------------------------------------------------------------------
-    # print 'Calculate BetaM'
-    #
-    # cos2=coslat*coslat
-    #
-    # # for i in range(0,np.size(um,axis=1)) :
-    # #  cosuy_np = np.gradient(um[:,i]*cos2,2*pi*radius/360)
-    # #  cosuyy_np = np.gradient(um[:,i]/cos2,2*pi*radius/360)
-    # cosuy_np = np.zeros_like(um)
-    # cosuyy_np = np.zeros_like(um)
-    # #print dy
-    # #quit()
-    # dy = np.gradient(ym)
-    # cosuy_np[:,0] = np.gradient(um[:,0]*cos2,dy)
-    # cosuyy_np[:,0] = np.gradient(cosuy_np[:,0]/cos2,dy)
-    # for j in range(0,np.size(um,axis=0)) :
-    #     cosuy_np[j,:] = cosuy_np[j,0]
-    #     cosuyy_np[j,:] = cosuyy_np[j,0]
-    #
-    # tmp = 2*e_omega *cos2/radius
-    # BetaM_np = tmp[:,None]-cosuyy_np
-    # BetaM = BetaM_np
-    #
-    # Ks = np.sqrt(BetaM/um)
-    #
-    #
-    #
-    # print("Ks done")
-    #
-    # #---NetCDF write---------------------------------------------------------------
-    # print("Start NetCDF writing")
-    #
-    # ncout = Dataset(fout, 'w', format='NETCDF4')
-    # ncout.description = "Ks %s" % (fout)
-    #
-    # # Using our previous dimension info, we can create the new time dimension
-    # # Even though we know the size, we are going to set the size to unknown
-    #
-    # ncout.createDimension(dimnam[0], lons.size)
-    # ncout.createDimension(dimnam[1], lats.size)
-    # #ncout.createDimension(dimnam[2], None)
-    #
-    # for nv in range(0, 2) :
-    #     ncout_var = ncout.createVariable(varnam[nv], nc.variables[varnam[nv]].dtype,dimnam[nv])
-    #     for ncattr in nc.variables[varnam[nv]].ncattrs():
-    #         ncout_var.setncattr(ncattr, nc.variables[varnam[nv]].getncattr(ncattr))
-    # #print(nc.variables['latitude'].ncattrs())
-    #
-    # ncout.variables[dimnam[0]][:] = lons
-    # ncout.variables[dimnam[1]][:] = lats
-    # #ncout.variables[dimnam[2]][:] = time
-    #
-    # ncout_Ks = ncout.createVariable('Ks', 'f',(dimnam[1],dimnam[0]))
-    # ncout_Ks.long_name = 'Total stationary wavenumber'
-    # #Ks_scale = 1.e-7
-    # #Ks_add   = 0.
-    # #ncout_Ks.scale_factor = Ks_scale
-    # #ncout_Ks.add_offset   = Ks_add
-    # #ncout_sf.units        = 'm**2 s**-1'
-    #
-    # #!!!automatically takes scale and offset into account
-    # #!!! no need for: ncout_sf[:] = (sf-sf_add)/sf_scale
-    # ncout_Ks[:] = Ks*radius
-    #
-    #
-    # nc.close()
-    # ncout.close()
+## correlation
+## write netcdf of corr coef (regression line)
+##plot corr coeff for four seasons
