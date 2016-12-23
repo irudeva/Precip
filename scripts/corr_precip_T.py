@@ -11,6 +11,22 @@ from scipy import interpolate, stats
 # radius=6.371e6 #radius of sphere having same volume as Earth (m)
 # e_omega=7.292e-5 #rotation rate of Earth (rad/s)
 
+#regression test
+
+# X=np.array([0,1,2,3,4,5])
+# Y = np.array([np.NaN,4, 5, 10, 2, 5])
+# mask = np.isfinite([X, Y]).all(axis=0)
+# Xclear = X[mask]
+# Yclear = Y[mask]
+# print Xclear
+# print Yclear
+# a, b, r, pval, err = stats.linregress(Xclear, Yclear)
+# print r, pval
+# print a*Xclear+b
+
+#end regression test
+
+
 
 
 precipin = "../../../DATA/GPCP/precip.mon.mean.nc"
@@ -242,8 +258,10 @@ for issn in range(ssn.size) :
     for y,lat in enumerate(latp) :
         for x,lon in enumerate(lonp) :
           slope, intercept, r_value, p_value, std_err = stats.linregress(precip_ssn[:,issn,y,x],t2m_like_precip[:,issn,y,x])
-          print "presip: ",precip_ssn[:,issn,y,x]
-          print "t2m   : ",t2m_like_precip[:,issn,y,x]
+          print "precip: "
+          print precip_ssn[:,issn,y,x]
+          print "t2m   : "
+          print t2m_like_precip[:,issn,y,x]
           print ssn[issn], lon,lat, r_value, p_value
 
 
