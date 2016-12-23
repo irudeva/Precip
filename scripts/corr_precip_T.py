@@ -263,20 +263,20 @@ pval = r
 for issn in range(ssn.size) :
     for y,lat in enumerate(latp) :
         for x,lon in enumerate(lonp) :
-          print lon,lat
+        #   print lon,lat
           ploc = precip_ssn[:,issn,y,x]
           tloc = t2m_like_precip[:,issn,y,x]
-          print ploc
-          print tloc
+        #   print ploc
+        #   print tloc
           mask = np.isfinite([ploc, tloc]).all(axis=0)
-          print ploc[mask]
-          print tloc[mask]
+        #   print ploc[mask]
+        #   print tloc[mask]
           a, b, r[issn,y,x], pval[issn,y,x], err = stats.linregress(tloc[mask],ploc[mask])
-          # print "precip: "
-          # print "t2m   : "
-          print r[issn,y,x], pval[issn,y,x]
-          print a*tloc[mask]+b
-          print ploc[mask]
+        #   # print "precip: "
+        #   # print "t2m   : "
+        #   print r[issn,y,x], pval[issn,y,x]
+        #   print a*tloc[mask]+b
+        #   print ploc[mask]
 
           #time.sleep(5.5)
           #pause()
@@ -298,10 +298,10 @@ for issn in range(ssn.size) :
 fssn = '../output/corr.nc'
 print 'output netcdf ', fssn
 ncout_corr = Dataset(fssn, 'w', format='NETCDF4')
-ncout_corr.description = "Seasonal correlations between 2m air temp from %s and GPSP precip %s for %d - %d" % (Tin,precipin,yrs)
+ncout_corr.description = "Seasonal correlations between 2m air temp from %s and GPSP precip %s for %d - %d" % (Tin,precipin,yrs[0],yrs[1])
 
-varnam = (Tnam[0],Tnam[1],'ssn','r','pval')
-dimnam = (Tnam[0],Tnam[1],'ssn','nchar')
+varnam = (precipnam[0],precipnam[1],'ssn','r','pval')
+dimnam = (precipnam[0],precipnam[1],'ssn','nchar')
 
 ncout_corr.createDimension(dimnam[0], lonp.size)
 ncout_corr.createDimension(dimnam[1], latp.size)
@@ -314,7 +314,7 @@ for n,nv in enumerate(varnam[:2]) :
     for ncattr in ncP.variables[nv].ncattrs():
         ncout_var.setncattr(ncattr, ncP.variables[nv].getncattr(ncattr))
 
-ncout_issn = ncout_corr.createVariable(varnam[2], 'S1',(dimnam[2],dimnam[4]))
+ncout_issn = ncout_corr.createVariable(varnam[2], 'S1',(dimnam[2],dimnam[3]))
 str_out = netCDF4.stringtochar(np.array(ssn, 'S3'))
 #ncout_yr = ncout_corr.createVariable(varnam[3], 'i4',dimnam[3])
 
@@ -324,7 +324,7 @@ ncout_r.long_name = 'Correlation between precip and t2m'
 # ncout_var.scale_factor = varlist["scale"][iv]
 # ncout_var.add_offset   = 0.
 ncout_p = ncout_corr.createVariable(varnam[4], 'f',dimnam[2::-1])
-ncout_r.long_name = 'p values'
+ncout_p.long_name = 'p values'
 
 ncout_corr.variables[varnam[0]][:] = lonp
 ncout_corr.variables[varnam[1]][:] = latp
