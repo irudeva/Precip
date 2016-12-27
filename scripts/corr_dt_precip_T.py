@@ -2,7 +2,7 @@ from netCDF4 import Dataset
 import netCDF4
 import numpy as np
 import datetime as datetime  # Python standard library datetime  module
-from scipy import interpolate, stats
+from scipy import interpolate, stats, signal
 import time
 
 def pause():
@@ -39,11 +39,9 @@ def pause():
 #end regression test
 
 
-
-tname = 'ts'
+tname = 't2m'
 
 precipin = "../../../DATA/GPCP/precip.mon.mean.nc"
-
 if tname=='t2m' :
     Tin = "../../../DATA/ERAint/air.erain.mon.mean.nc"
 else :
@@ -288,10 +286,15 @@ for issn in range(ssn.size) :
         #   print ploc
         #   print tloc
           mask = np.isfinite([ploc, tloc]).all(axis=0)
-        #   print ploc[mask]
-        #   print tloc[mask]
-        #   print stats.linregress(tloc[mask],ploc[mask])
-          a, b, r[issn,y,x], pval[issn,y,x], err = stats.linregress(tloc[mask],ploc[mask])
+          pmask = ploc[mask]
+          tmask = tloc[mask]
+        #   print pmask
+        #   print tmask
+          p_dt = signal.detrend(pmask)
+          t_dt = signal.detrend(tmask)
+        #   print p_dt
+        #   print t_dt
+          a, b, r[issn,y,x], pval[issn,y,x], err = stats.linregress(t_dt,p_dt)
         #   print lon, lat, r[issn,y,x], pval[issn,y,x]
         #   print a, b, r[issn,y,x], pval[issn,y,x], err
         #   # print "precip: "
@@ -317,10 +320,10 @@ for issn in range(ssn.size) :
 
 # Write ouput file
 
-fcorr = '../output/corr_%s_precip.nc'%(tname)
+fcorr = '../output/corr_dt_%s_precip.nc'%(tname)
 print 'output netcdf ', fcorr
 ncout_corr = Dataset(fcorr, 'w', format='NETCDF4')
-ncout_corr.description = "Seasonal correlations between %s from %s and GPSP precip %s for %d - %d" % (tname,Tin,precipin,yrs[0],yrs[1])
+ncout_corr.description = "Seasonal correlations between detrended series of %s from %s and GPSP precip %s for %d - %d" % (tname,Tin,precipin,yrs[0],yrs[1])
 
 varnam = (precipnam[0],precipnam[1],'ssn','r','pval')
 dimnam = (precipnam[0],precipnam[1],'ssn','nchar')
@@ -341,7 +344,7 @@ str_out = netCDF4.stringtochar(np.array(ssn, 'S3'))
 #ncout_yr = ncout_corr.createVariable(varnam[3], 'i4',dimnam[3])
 
 ncout_r = ncout_corr.createVariable(varnam[3], 'f',dimnam[2::-1])
-ncout_r.long_name = 'Correlation between %s and precip' % tname
+ncout_r.long_name = 'Correlation between detrended %s and precip' % tname
 #ncout_r.units = 'C'
 # ncout_var.scale_factor = varlist["scale"][iv]
 # ncout_var.add_offset   = 0.

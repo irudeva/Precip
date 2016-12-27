@@ -2,17 +2,21 @@ begin
 ;************************************************
 ; read in netCDF file
 ;************************************************
-
+ tnam = "t2m"
  outvar = (/"corr","pval"/)
  invar = (/"r","pval"/)
+ version = (/"","_dt"/)
 
- do iv = 0,1
+do iv =1,1  ;version iv = 1 => detrended
+ do ivar = 0,0 ;invar: corr or pval
 
  do is=0,3
+  fin = "../output/corr"+version(iv)+"_"+tnam+"_precip.nc"
+  print(fin)
+  a = addfile(fin,"r")
 
-  a = addfile("../output/corr.nc","r")
   ;************************************************
-  ;if(any((/"qy","BetaM"/).eq.nvar(iv))) then
+  ;if(any((/"qy","BetaM"/).eq.nvar(ivar))) then
   lev = (/-90, 90, 20/)
   ;end if
 
@@ -20,7 +24,7 @@ begin
     ssn=a->ssn
     season = ""+ssn(is,0) +ssn(is,1) +ssn(is,2)
 
-    varname=invar(iv)
+    varname=invar(ivar)
     var = a->$varname$
     printVarSummary(var)
     var=var*100.
@@ -32,7 +36,8 @@ begin
   ;************************************************
   ; create default plot
   ;************************************************
-    wks = gsn_open_wks("png","../output/"+outvar(iv)+"."+season)                  ; send graphics to PNG file
+    fout = "../output/"+outvar(ivar)+version(iv)+"_"+tnam+"_precip."+season
+    wks = gsn_open_wks("png",fout)                  ; send graphics to PNG file
 
     res = True
     res@mpMinLatF            = -90      ; range to zoom in on
@@ -41,7 +46,7 @@ begin
     res@mpMaxLonF            = 360.
 
     res@cnFillOn             = True                  ; turn on color fill
-    res@cnFillPalette        = "ViBlGrWhYeOrRe"              ; choose colormap
+    res@cnFillPalette        = "BlAqGrWh2YeOrReVi22"              ; choose colormap
 
 
     res@cnLevelSelectionMode = "ManualLevels"	; manually set the contour levels with the following 3 resources
@@ -53,12 +58,13 @@ begin
 
     ;res@tiMainString         = var@long_name
     ;res@gsnCenterString = ""+ssn(issn,0) +ssn(issn,1) +ssn(issn,2)  + yr          ; plot center string
-    res@tiMainString = season
+    res@tiMainString = season + version(iv)
 
     print("plotting")
     plot = gsn_csm_contour_map(wks,var(is,:,:),res)         ; create a default plot
     print("end plotting")
 
+end do
 end do
 end do
 end
