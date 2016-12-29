@@ -40,19 +40,19 @@ begin
             ;************************************************
             ; create default plot
             ;************************************************
-              fout = "../output/"+outvar(ivar)+version(iv)+"_"+tnam(it)+"_precip."+season
+              fout = "../output/"+outvar(ivar)+version(iv)+"_"+tnam(it)+"_precip."+season+".tropics"
               wks = gsn_open_wks("png",fout)                  ; send graphics to PNG file
 
               res = True
 
-              res@mpMinLatF            = -90      ; range to zoom in on
-              res@mpMaxLatF            =  90
+              res@mpMinLatF            = -30      ; range to zoom in on
+              res@mpMaxLatF            =  30
               res@mpMinLonF            =  0.
               res@mpMaxLonF            = 360.
 
-              ;res@mpShapeMode  = "FreeAspect"
-              ;res@vpWidthF      = 0.8
-              ;res@vpHeightF     = 0.2
+              res@mpShapeMode  = "FreeAspect"
+              res@vpWidthF      = 0.8
+              res@vpHeightF     = 0.2
 
 
               res@cnFillOn             = True                  ; turn on color fill

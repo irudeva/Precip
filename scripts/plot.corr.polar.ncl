@@ -8,6 +8,7 @@ begin
  invar = (/"r","pval"/)
  version = (/"","_dt"/)
  Version = (/"","Detrended "/)
+ HS = (/"S","N"/)
  lat = (/ (/-90,-45/), (/45,90/) /)
 
   do it = 0,1
@@ -40,20 +41,16 @@ begin
             ;************************************************
             ; create default plot
             ;************************************************
-              fout = "../output/"+outvar(ivar)+version(iv)+"_"+tnam(it)+"_precip."+season
+              fout = "../output/"+outvar(ivar)+version(iv)+"_"+tnam(it)+"_precip."+season+"."+HS(ih)
               wks = gsn_open_wks("png",fout)                  ; send graphics to PNG file
 
               res = True
+              res@gsnPolar   = HS(ih)+"H"
 
-              res@mpMinLatF            = -90      ; range to zoom in on
-              res@mpMaxLatF            =  90
+              res@mpMinLatF            = lat(ih,0)      ; range to zoom in on
+              res@mpMaxLatF            = lat(ih,1)
               res@mpMinLonF            =  0.
               res@mpMaxLonF            = 360.
-
-              ;res@mpShapeMode  = "FreeAspect"
-              ;res@vpWidthF      = 0.8
-              ;res@vpHeightF     = 0.2
-
 
               res@cnFillOn             = True                  ; turn on color fill
               res@cnFillPalette        = "BlAqGrWh2YeOrReVi22"              ; choose colormap
@@ -74,7 +71,8 @@ begin
 
               print("plotting")
               print(res)
-              plot = gsn_csm_contour_map(wks,var(is,:,:),res)         ; create a default plot
+              ;plot = gsn_csm_contour_map(wks,var(is,:,:),res)         ; create a default plot
+              plot = gsn_csm_contour_map_polar(wks,var(is,:,:),res)
               print("end plotting")
           end do
         end do
